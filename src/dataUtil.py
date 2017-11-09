@@ -26,6 +26,49 @@ class BasicTrack():
     This class represents a muscial track and provides
     method to convert it to a midi format
     """
+    def Lisp_to_Midi(pattern_in, tracks_lisp):
+        pattern_out = midi.containers.Pattern() # Create new pattern
+        pattern_out.format = pattern_in.format # Copy format from original MIDI file
+        pattern_out.resolution = pattern_in.resolution # Copy resolution from original MIDI file
+        pattern_out.insert(2, pattern_in[0]) # Copy track[0] of Metadata from original MIDI file
+
+        # Create as many tracks as original MIDI file in new pattern
+        for i, track_in in enumerate(pattern_in):
+            if i > 0:
+                new_track = midi.containers.Track()
+                pattern_out.insert(2, new_track)
+
+        # Copy metadata from melodic tracks inside the melodic tracks of the new pattern
+        End_index = []
+        for i, track in enumerate(pattern_in):
+            if i > 0:
+                index_note = 0
+                for j, event in enumerate(track):
+                    if type(event) not in [midi.events.NoteOnEvent, midi.events.NoteOffEvent]:
+                        pattern_out[i].append(event)
+                    else:
+                        index_note = j
+                End_index.append(len(track) - index_note - 1) # keeps the meta of the tracks in the new pattern at the same place as the original MIDI file
+
+        # Create new events inside each melodic track of new pattern from lisp
+        for i, track in enumerate(tracks_lisp):
+            end_index = End_index[i]
+            indicator_silence = -1
+            for j, note in enumerate(track):
+                if note[0] == 'silence':
+                    NoteOnEvent = midi.events.NoteOnEvent(tick=note[1], channel=i, data=[track[j+1][0], 80])
+                    NoteOffEvent = midi.events.NoteOffEvent(tick=track[j+1][1], channel=i, data=[track[j+1][0], 0])
+                    pattern_out[i+1].insert(-end_index,NoteOnEvent)
+                    pattern_out[i+1].insert(-end_index,NoteOffEvent)
+                    indicator_silence = j+1
+                if (note[0] != 'silence') & (indicator_silence != j):
+                    NoteOnEvent = midi.events.NoteOnEvent(tick=0, channel=i, data=[note[0], 80])
+                    NoteOffEvent = midi.events.NoteOffEvent(tick=note[1], channel=i, data=[note[0], 0])
+                    pattern_out[i+1].insert(-end_index,NoteOnEvent)
+                    pattern_out[i+1].insert(-end_index,NoteOffEvent)
+
+        return pattern_out
+
     def Midi_to_Lisp(self, pattern):
         tracks = []
         for i, track in enumerate(pattern): # Enumerate all the tracks
