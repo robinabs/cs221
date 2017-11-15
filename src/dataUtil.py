@@ -170,11 +170,11 @@ class MusicPattern():
     def window(self, windowStart, windowEnd, trackNum=0):
         assert(0 <= trackNum and trackNum < self.numTracks)
         primTrack = self.primTracks[trackNum]
-        start = max(0, windowStart)
-        end = min(len(primTrack),windowEnd)
+        assert (2 <= windowStart and windowEnd < len(primTrack)-2)
+
         windowedTrack = list(primTrack)
-        for i in range(start, end):
-            windowedTrack[i] = (None,None)
+        for i in range(windowStart, windowEnd+1):
+            windowedTrack[i] = (None, None)
         return windowedTrack
 
     def getCorrupt(self, windowStart, windowEnd, trackNum=0):
