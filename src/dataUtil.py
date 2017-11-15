@@ -20,7 +20,7 @@ class MusicPattern():
         # Do midi -> lisp conversion
         self.lispTracks = self.midiToLisp()
         # Do lisp -> prim conversion
-        self.primTracks, self.rythm_unit = self.lispToPrim()
+        self.primTracks, self.rythmUnits = self.lispToPrim()
 
     def midiToLisp(self, midiPattern=None):
         if midiPattern is None: midiPattern = self.midiPattern
@@ -43,7 +43,7 @@ class MusicPattern():
                         notes = [("silence", event.tick)]
                         pitch = midiTrack[eventNum+1].data[0]
                         dur   = midiTrack[eventNum+1].tick
-                        notes += [(pitch,duration)]
+                        notes += [(pitch, dur)]
 
                     # Add generated notes to track
                     lispTrack += notes
@@ -52,33 +52,33 @@ class MusicPattern():
 
     def lispToPrim(self, lispTracks=None):
         if lispTracks is None: lispTracks = self.lispTracks
-        primTracks = []
+        primTracks, rythmUnits = [], []
         for lispTrack in lispTracks:
             min_duration = 0
             # @robin: a quoi sert ce if ?
             if lispTrack:
                 durations = [lispTrack[i][1] for i in range(len(lispTrack))]
-                rythm_unit = reduce(gcd, durations)
+                rythmUnits.append(reduce(gcd, durations))
                 primTrack = []
                 for note in lispTrack:
-                    assert(note[1] % rythm_unit == 0)
-                    primTrack += [(note[0],True) if (i < note[1]/rythm_unit - 1) else (note[0],False) \
-                                  for note in lispTrack for i in range(note[1]/rythm_unit)]
+                    assert(note[1] % rythmUnits[-1] == 0)
+                    primTrack += [(note[0],True) if (i < note[1]/rythmUnits[-1] - 1) else (note[0],False) \
+                                  for note in lispTrack for i in range(note[1]/rythmUnits[-1])]
                 primTracks.append(primTrack)
-        return primTracks, rythm_unit
+        return primTracks, rythmUnits
 
     def primToLisp(self, primTracks=None):
         if primTracks is None: primTracks = self.primTracks
         lispTracks = []
-        for primTrack in primTracks:
+        for trackNum, primTrack in enumerate(primTracks):
             # @robin: a quoi sert ce if ?
             lispTrack = []
             if primTrack:
                 i = 0
                 while i < len(primTrack):
-                    note = [primTrack[i][0], self.rythm_unit]
+                    note = [primTrack[i][0], self.rythmUnits[trackNum]]
                     while primTrack[i][1]:
-                        note[1] += self.rythm_unit
+                        note[1] += self.rythmUnist[trackNum]
                         i += 1
                     i+=1
                     lispTrack.append(tuple(note))
@@ -152,6 +152,18 @@ class MusicPattern():
         midi.write_midifile(fileName, midiPattern)
         print "Wrote %s" % fileName
 
+    def window(self, windowStart, windowEnd, trackNum=0):
+        assert(0 <= trackNum and trackNum < self.numTracks)
+        primTrack = self.primTracks[trackNum]
+        start = max(0, windowStart)
+        end = min(len(primTrack),windowEnd)
+        windowedTrack = list(primTrack)
+        for i in range(start, end):
+            windowedTrack[i] = (None,None)
+        return windowedTrack
+
+    def getCorrupt(self, windowStart, windowEnd, trackNum=0):
+        return self.rythm_unit, window(windowStart, windowEnd, trackNum)
 
 class BachChorale(MusicPattern):
     """
@@ -208,4 +220,3 @@ if __name__ == '__main__':
     #myChorale = BachChorale("../dat/bach-chorales/chorales.lisp", 5)
     #myChorale.write("../dat/bach-chorales/mid/chorale5.mid")
     myOde = MusicPattern("../../test/ode.mid")
-    myOde.primToLisp()
