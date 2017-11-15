@@ -5,3 +5,7 @@
 # Python generated files #
 ##########################
 .pyc
+
+# Generated chorales #
+######################
+./dat/bach-chorales/mid/*
