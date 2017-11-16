@@ -32,11 +32,10 @@ class MusicPattern():
         # Do midi -> lisp conversion
         self.lispTracks = self.midiToLisp()
         print "Converted to lisp"
-        print self.numTracks
 
         # Do lisp -> prim conversion
         self.primTracks, self.rythmUnits = self.lispToPrim()
-        print "Converted to midi"
+        print "Converted to prim"
 
     def midiToLisp(self, midiPattern=None):
         if midiPattern is None: midiPattern = self.midiPattern
@@ -70,7 +69,6 @@ class MusicPattern():
         if lispTracks is None: lispTracks = self.lispTracks
         primTracks, rythmUnits = [], []
         for lispTrackNum, lispTrack in enumerate(lispTracks):
-            print "Track %d" % lispTrackNum
             min_duration = 0
             durations = [lispTrack[i][1] for i in range(len(lispTrack))]
             rythmUnits.append(reduce(gcd, durations))
@@ -86,7 +84,6 @@ class MusicPattern():
         if primTracks is None: primTracks = self.primTracks
         lispTracks = []
         for trackNum, primTrack in enumerate(primTracks):
-            # @robin: a quoi sert ce if ?
             lispTrack = []
             if primTrack:
                 i = 0
@@ -178,7 +175,7 @@ class MusicPattern():
         return windowedTrack
 
     def getCorrupt(self, windowStart, windowEnd, trackNum=0):
-        return self.rythmUnits[trackNum], window(windowStart, windowEnd, trackNum)
+        return self.rythmUnits[trackNum], self.window(windowStart, windowEnd, trackNum)
 
 class BachChorale(MusicPattern):
     """

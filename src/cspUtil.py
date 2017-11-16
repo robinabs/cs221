@@ -160,6 +160,8 @@ class BacktrackingSearch():
             print "Found %d optimal assignments with weight %f in %d operations" % \
                 (self.numOptimalAssignments, self.optimalWeight, self.numOperations)
             print "First assignment took %d operations" % self.firstAssignmentNumOperations
+            print "One of the optimal assignments is", self.optimalAssignment
+
         else:
             print "No solution was found."
 
