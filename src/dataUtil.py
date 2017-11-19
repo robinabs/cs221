@@ -29,18 +29,9 @@ class MusicPattern():
         self.lispTracks  = []
         print "Loaded %s" % midiFile
 
-        # Do midi -> lisp conversion
-        self.lispTracks = self.midiToLisp()
-        print "Converted to lisp"
-
-        # Do lisp -> prim conversion
-        self.primTracks, self.rythmUnits = self.lispToPrim()
-        print "Converted to prim"
-
-    def midiToLisp(self, midiPattern=None):
-        if midiPattern is None: midiPattern = self.midiPattern
+    def midiToLisp(self):
         lispTracks = []
-        for midiTrackId, midiTrack in enumerate(midiPattern):
+        for midiTrackId, midiTrack in enumerate(self.midiPattern):
             if midiTrackId not in self.trackIdx: continue
 
             lispTrack = []
@@ -63,55 +54,56 @@ class MusicPattern():
                     # Add generated notes to track
                     lispTrack += notes
             lispTracks.append(lispTrack)
-        return lispTracks
+        self.lispTracks = lispTracks
 
-    def lispToPrim(self, lispTracks=None):
-        if lispTracks is None: lispTracks = self.lispTracks
-        primTracks, rythmUnits = [], []
-        for lispTrackNum, lispTrack in enumerate(lispTracks):
+    def lispToPrim(self):
+        self.primTracks, self.rythmUnits = [], []
+        for lispTrackNum, lispTrack in enumerate(self.lispTracks):
             min_duration = 0
             durations = [lispTrack[i][1] for i in range(len(lispTrack))]
-            rythmUnits.append(reduce(gcd, durations))
-            primTrack = []
-            for noteNum, note in enumerate(lispTrack):
-                assert(note[1] % rythmUnits[-1] == 0)
-                primTrack += [(note[0],True) if (i < note[1]/rythmUnits[-1] - 1) else (note[0],False) \
-                              for note in lispTrack for i in range(note[1]/rythmUnits[-1])]
-            primTracks.append(primTrack)
-        return primTracks, rythmUnits
+            self.rythmUnits.append(reduce(gcd, durations))
 
-    def primToLisp(self, primTracks=None):
-        if primTracks is None: primTracks = self.primTracks
+            for noteNum, note in enumerate(lispTrack):
+                assert(note[1] % self.rythmUnits[-1] == 0)
+
+            primTrack = [(note[0],True) if (i < note[1]/self.rythmUnits[-1] - 1) else (note[0],False) \
+                              for note in lispTrack for i in range(note[1]/self.rythmUnits[-1])]
+            self.primTracks.append(primTrack)
+
+    def primToLisp(self):
         lispTracks = []
-        for trackNum, primTrack in enumerate(primTracks):
+        for trackNum, primTrack in enumerate(self.primTracks):
             lispTrack = []
             if primTrack:
                 i = 0
                 while i < len(primTrack):
                     note = [primTrack[i][0], self.rythmUnits[trackNum]]
                     while primTrack[i][1]:
-                        note[1] += self.rythmUnist[trackNum]
+                        note[1] += self.rythmUnits[trackNum]
                         i += 1
                     i+=1
                     lispTrack.append(tuple(note))
             lispTracks.append(lispTrack)
 
-        return lispTracks
+        self.reconstructedTracks = lispTracks
 
     def write(self, fileName=None, lispTracks=None):
-        midiPattern = midi.containers.Pattern()
+        midiPatternOut = midi.containers.Pattern()
         if self.midiPattern is not None:
             # copy pattern metadata
-            midiPattern.format     = self.midiPattern.format
-            midiPattern.resolution = self.midiPattern.resolution
-            midiPattern.insert(2, self.midiPattern[0])
+            midiPatternOut.format     = self.midiPattern.format
+            midiPatternOut.resolution = self.midiPattern.resolution
 
         # Create tracks
-        if lispTracks is None: lispTracks = self.lispTracks
-        midiTracks = []
-        for _ in range(len(lispTracks)):
-            midiPattern.insert(2, midi.containers.Track())
-            midiTracks.append([])
+        if lispTracks is None: lispTracks = self.reconstructedTracks
+        midiTracksOut = []
+        for trackNum, _ in enumerate(self.midiPattern):
+            if trackNum in self.trackIdx:
+                midiPatternOut.insert(2, midi.containers.Track())
+                midiTracksOut.append([])
+            else:
+                midiPatternOut.insert(2, self.midiPattern[trackNum])
+
 
         # Generate tracks' NoteOnEvents and NoteOffEvents
         for lispTrackId, lispTrack in enumerate(lispTracks):
@@ -124,9 +116,9 @@ class MusicPattern():
 
                     NoteOffEvent = midi.events.NoteOffEvent(tick=lispTrack[noteNum+1][1], \
                                                             channel=lispTrackId, \
-                                                            data=[lispTrackId[noteNum+1][0], 0])
+                                                            data=[lispTrack[noteNum+1][0], 0])
 
-                    midiTracks[lispTrackId] += [NoteOnEvent, NoteOffEvent]
+                    midiTracksOut[lispTrackId] += [NoteOnEvent, NoteOffEvent]
                     noteNumAfterSilence = noteNum+1
 
                 elif noteNum != noteNumAfterSilence:
@@ -136,22 +128,24 @@ class MusicPattern():
                     NoteOffEvent = midi.events.NoteOffEvent(tick=note[1], \
                                                             channel=lispTrackId, \
                                                             data=[note[0], 0])
-                    midiTracks[lispTrackId] += [NoteOnEvent, NoteOffEvent]
+                    midiTracksOut[lispTrackId] += [NoteOnEvent, NoteOffEvent]
 
         # Add tracks to midiPattern
+        realTrackIdx = -1
         if self.midiPattern is not None:
             for midiTrackId, midiTrack in enumerate(self.midiPattern):
-                if midiTrackId == 0: continue
+                if midiTrackId not in self.trackIdx: continue
+                realTrackIdx+= 1
                 for eventNum, event in enumerate(midiTrack):
                     if type(event) not in [midi.events.NoteOnEvent, midi.events.NoteOffEvent]:
-                        midiPattern[midiTrackId].append(event)
+                        midiPatternOut[midiTrackId].append(event)
                     elif type(midiTrack[eventNum-1]) not in \
                     [midi.events.NoteOnEvent, midi.events.NoteOffEvent]:
-                        midiPattern[midiTrackId].extend(midiTracks[midiTrackId-1])
+                        midiPatternOut[midiTrackId].extend(midiTracksOut[realTrackIdx])
         else:
-            for midiTrackId, midiTrack in enumerate(midiTracks):
-                midiPattern[midiTrackId].extend(midiTracks[midiTrackId])
-            midiPattern[0].append(midi.EndOfTrackEvent(tick=1))
+            for midiTrackId, midiTrack in enumerate(midiTracksOut):
+                midiPatternOut[midiTrackId].extend(midiTracksOut[midiTrackId])
+            midiPatternOut[0].append(midi.EndOfTrackEvent(tick=1))
 
 
         # Write file
@@ -161,8 +155,13 @@ class MusicPattern():
                 i += 1
             fileName = self.midiFile[0:-4] + str(i) + ".mid"
 
-        midi.write_midifile(fileName, midiPattern)
+        midi.write_midifile(fileName, midiPatternOut)
         print "Wrote %s" % fileName
+        print midiPatternOut == self.midiPattern
+        print "original"
+        print self.midiPattern
+        print "recon"
+        print midiPatternOut
 
     def window(self, windowStart, windowEnd, trackNum=0):
         assert(0 <= trackNum and trackNum < self.numTracks)
