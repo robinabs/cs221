@@ -17,11 +17,15 @@ class MusicPattern():
         self.midiPattern = midi.read_midifile(midiFile)
 
         self.trackIdx = []
+        self.channels = []
         for trackNum, midiTrack in enumerate(self.midiPattern):
             isTrack = False
             for midiEvent in midiTrack:
                 if type(midiEvent) == midi.events.NoteOnEvent:
                     isTrack = True
+                    self.channels.append(midiEvent.channel)
+                    break
+
             if isTrack:
                 self.trackIdx.append(trackNum)
 
@@ -87,7 +91,7 @@ class MusicPattern():
 
         self.reconstructedTracks = lispTracks
 
-    def write(self, fileName=None, lispTracks=None):
+    def lispToMidi(self, lispTracks=None):
         midiPatternOut = midi.containers.Pattern()
         if self.midiPattern is not None:
             # copy pattern metadata
@@ -99,10 +103,10 @@ class MusicPattern():
         midiTracksOut = []
         for trackNum, _ in enumerate(self.midiPattern):
             if trackNum in self.trackIdx:
-                midiPatternOut.insert(2, midi.containers.Track())
+                midiPatternOut.append(midi.containers.Track())
                 midiTracksOut.append([])
             else:
-                midiPatternOut.insert(2, self.midiPattern[trackNum])
+                midiPatternOut.append(self.midiPattern[trackNum])
 
 
         # Generate tracks' NoteOnEvents and NoteOffEvents
@@ -111,11 +115,11 @@ class MusicPattern():
             for noteNum, note in enumerate(lispTrack):
                 if note[0] == "silence":
                     NoteOnEvent = midi.events.NoteOnEvent(tick=note[1], \
-                                                          channel=lispTrackId, \
+                                                          channel=self.channels[lispTrackId], \
                                                           data=[lispTrack[noteNum+1][0], 80])
 
                     NoteOffEvent = midi.events.NoteOffEvent(tick=lispTrack[noteNum+1][1], \
-                                                            channel=lispTrackId, \
+                                                            channel=self.channels[lispTrackId], \
                                                             data=[lispTrack[noteNum+1][0], 0])
 
                     midiTracksOut[lispTrackId] += [NoteOnEvent, NoteOffEvent]
@@ -123,10 +127,10 @@ class MusicPattern():
 
                 elif noteNum != noteNumAfterSilence:
                     NoteOnEvent = midi.events.NoteOnEvent(tick=0, \
-                                                          channel=lispTrackId, \
+                                                          channel=self.channels[lispTrackId], \
                                                           data=[note[0], 80])
                     NoteOffEvent = midi.events.NoteOffEvent(tick=note[1], \
-                                                            channel=lispTrackId, \
+                                                            channel=self.channels[lispTrackId], \
                                                             data=[note[0], 0])
                     midiTracksOut[lispTrackId] += [NoteOnEvent, NoteOffEvent]
 
@@ -148,6 +152,10 @@ class MusicPattern():
             midiPatternOut[0].append(midi.EndOfTrackEvent(tick=1))
 
 
+        self.midiPatternOut = midiPatternOut
+
+
+    def write(self, fileName=None):
         # Write file
         if fileName is None:
             i = 1
@@ -155,13 +163,8 @@ class MusicPattern():
                 i += 1
             fileName = self.midiFile[0:-4] + str(i) + ".mid"
 
-        midi.write_midifile(fileName, midiPatternOut)
+        midi.write_midifile(fileName, self.midiPatternOut)
         print "Wrote %s" % fileName
-        print midiPatternOut == self.midiPattern
-        print "original"
-        print self.midiPattern
-        print "recon"
-        print midiPatternOut
 
     def window(self, windowStart, windowEnd, trackNum=0):
         assert(0 <= trackNum and trackNum < self.numTracks)
