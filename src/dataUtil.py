@@ -166,18 +166,19 @@ class MusicPattern():
         midi.write_midifile(fileName, self.midiPatternOut)
         print "Wrote %s" % fileName
 
-    def window(self, windowStart, windowEnd, trackNum=0):
+    def window(self, window, trackNum=0):
+        (start, end) = window
         assert(0 <= trackNum and trackNum < self.numTracks)
         primTrack = self.primTracks[trackNum]
-        assert (2 <= windowStart and windowEnd < len(primTrack)-2)
+        assert (2 <= start and end < len(primTrack)-2)
 
         windowedTrack = list(primTrack)
-        for i in range(windowStart, windowEnd+1):
+        for i in range(start, end+1):
             windowedTrack[i] = (None, None)
         return windowedTrack
 
-    def getCorrupt(self, windowStart, windowEnd, trackNum=0):
-        return self.rythmUnits[trackNum], self.window(windowStart, windowEnd, trackNum)
+    def getCorrupt(self, window, trackNum=0):
+        return self.rythmUnits[trackNum], self.window(window, trackNum)
 
 class BachChorale(MusicPattern):
     """
