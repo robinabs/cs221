@@ -1,10 +1,11 @@
 # OS generated files #
 ######################
-.DS_Store
+**/.DS_Store
+**/.ipynb_checkpoints
 
 # Python generated files #
 ##########################
-.pyc
+**/*.pyc
 
 # Generated chorales #
 ######################
