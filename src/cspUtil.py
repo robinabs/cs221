@@ -1,6 +1,8 @@
 # General code for representing a weighted CSP (Constraint Satisfaction Problem).
 # All variables are being referenced by their index instead of their original
 # names.
+
+import copy
 class CSP:
     def __init__(self):
         # Total number of variables in the CSP.
