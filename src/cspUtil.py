@@ -223,7 +223,7 @@ class BacktrackingSearch():
         # Perform backtracking search.
         self.backtrack({}, 0, 1)
         # Print summary of solutions.
-        self.print_stats()
+        #self.print_stats()
 
     def backtrack(self, assignment, numAssigned, weight):
         """
