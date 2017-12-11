@@ -197,6 +197,8 @@ class BachChorale(MusicPattern):
         self.choraleNum  = ((int(choraleNum)-1) % 100) + 1
         self.features    = ["pitch", "dur"]
         self.numTracks   = 1
+	self.rythmUnits  = []
+	self.primTracks  = []
         self.lispTracks  = [[]]
         self.midiPattern = None
 
@@ -218,6 +220,15 @@ class BachChorale(MusicPattern):
                     featurePosition = line.find(self.features[(i+1) % N], valueEndPosition)
                     valueEndPosition = line.find(')', featurePosition)
                 self.lispTracks[0] += [tuple(note)]
+
+	    durations = [self.lispTracks[0][i][1] for i in range(len(self.lispTracks[0]))]
+            self.rythmUnits.append(reduce(gcd, durations))
+
+	    for noteNum, note in enumerate(self.lispTracks[0]):
+                assert(note[1] % self.rythmUnits[0] == 0)
+            primTrack = [(note[0],True) if (i < note[1]/self.rythmUnits[-1] - 1) else (note[0],False) \
+                              for note in self.lispTracks[0] for i in range(note[1]/self.rythmUnits[-1])]
+            self.primTracks.append(primTrack)
 
     def __repr__(self):
         """
